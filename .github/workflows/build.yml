@@ -1,0 +1,73 @@
+name: Build Android Bundle
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Configure TWA Manifest
+        run: |
+          cat << 'EOF' > twa-manifest.json
+          {
+            "packageId": "app.netlify.omniconvertor030.twa",
+            "host": "omniconvertor030.netlify.app",
+            "name": "OmniConvert Precision Converter",
+            "launcherName": "OmniConvert",
+            "themeColor": "#030712",
+            "navigationColor": "#030712",
+            "backgroundColor": "#030712",
+            "enableNotifications": false,
+            "startUrl": "/",
+            "iconUrl": "https://omniconvertor030.netlify.app/icon-512.png",
+            "maskableIconUrl": "https://omniconvertor030.netlify.app/icon-512.png",
+            "appVersionName": "1.0.0",
+            "appVersionCode": 1,
+            "signingKey": {
+              "path": "./android.keystore",
+              "alias": "android"
+            },
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://omniconvertor030.netlify.app/manifest.json",
+            "fallbackType": "customtabs",
+            "features": {},
+            "alphaDependencies": {
+              "enabled": false
+            }
+          }
+          EOF
+          bubblewrap update --manifest=twa-manifest.json
+
+      - name: Build Android Bundle (.aab)
+        run: |
+          bubblewrap build --manifest=twa-manifest.json --skipSigning --skipPwaValidation
+
+      - name: Upload Store Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniConvert-GooglePlay-Package
+          path: |
+            *.aab
+            *.apk
+            app-release-bundle.aab

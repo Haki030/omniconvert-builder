@@ -10,7 +10,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Java JDK
+      - name: Set up Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -19,22 +19,23 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Bubblewrap CLI
+      - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: Generate Android Keystore
+      - name: Configure Environment Paths
         run: |
-          keytool -genkeypair -v -keystore android.keystore -alias android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass "OmniConvertPass123" -keypass "OmniConvertPass123" \
-            -dname "CN=OmniConvert, OU=App, O=OmniConvert, L=Swansea, S=Wales, C=GB"
+          bubblewrap updateConfig --jdkPath="$JAVA_HOME" --androidSdkPath="$ANDROID_HOME"
 
-      - name: Initialize Android Project
+      - name: Initialize Project Files
         run: |
           cat << 'EOF' > twa-manifest.json
           {
@@ -64,20 +65,20 @@ jobs:
             }
           }
           EOF
-          bubblewrap init --manifest=twa-manifest.json
+          bubblewrap update --manifest=twa-manifest.json
 
-      - name: Build Signed Android Package
-        env:
-          BUBBLEWRAP_KEYSTORE_PASSWORD: OmniConvertPass123
-          BUBBLEWRAP_KEY_PASSWORD: OmniConvertPass123
+      - name: Compile App Bundle (.aab)
         run: |
-          bubblewrap build --skipPwaValidation
+          bubblewrap build --manifest=twa-manifest.json --skipSigning --skipPwaValidation
 
-      - name: Upload Play Store Artifacts
+      - name: Upload Store Artifact
         uses: actions/upload-artifact@v4
         with:
           name: OmniConvert-GooglePlay-Package
           path: |
             *.aab
             *.apk
-            android.keystore
+            app-release-bundle.aab
+            *.aab
+            *.apk
+            app-release-bundle.aab

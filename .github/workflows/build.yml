@@ -6,36 +6,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/googlechromelabs/bubblewrap:latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Java JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android Licenses
-        run: |
-          yes | sdkmanager --licenses || true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
-
-      - name: Configure Environment Paths
-        run: |
-          bubblewrap updateConfig --jdkPath="$JAVA_HOME" --androidSdkPath="$ANDROID_HOME"
-
-      - name: Initialize Project Files
+      - name: Configure TWA Manifest
         run: |
           cat << 'EOF' > twa-manifest.json
           {
@@ -67,18 +44,16 @@ jobs:
           EOF
           bubblewrap update --manifest=twa-manifest.json
 
-      - name: Compile App Bundle (.aab)
+      - name: Build Android Bundle (.aab)
         run: |
           bubblewrap build --manifest=twa-manifest.json --skipSigning --skipPwaValidation
 
-      - name: Upload Store Artifact
+      - name: Upload Store Package
         uses: actions/upload-artifact@v4
         with:
           name: OmniConvert-GooglePlay-Package
           path: |
             *.aab
             *.apk
-            app-release-bundle.aab
-            *.aab
-            *.apk
-            app-release-bundle.aab
+            **/*.aab
+            **/*.apk

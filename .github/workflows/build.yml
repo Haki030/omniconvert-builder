@@ -10,24 +10,31 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup Java JDK
+      - name: Set up Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
-      - name: Configure TWA Manifest
+      - name: Generate Android Keystore
+        run: |
+          keytool -genkeypair -v -keystore android.keystore -alias android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "OmniConvertPass123" -keypass "OmniConvertPass123" \
+            -dname "CN=OmniConvert, OU=App, O=OmniConvert, L=Swansea, S=Wales, C=GB"
+
+      - name: Initialize Android Project
         run: |
           cat << 'EOF' > twa-manifest.json
           {
@@ -57,17 +64,20 @@ jobs:
             }
           }
           EOF
-          bubblewrap update --manifest=twa-manifest.json
+          bubblewrap init --manifest=twa-manifest.json
 
-      - name: Build Android Bundle (.aab)
+      - name: Build Signed Android Package
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: OmniConvertPass123
+          BUBBLEWRAP_KEY_PASSWORD: OmniConvertPass123
         run: |
-          bubblewrap build --manifest=twa-manifest.json --skipSigning --skipPwaValidation
+          bubblewrap build --skipPwaValidation
 
-      - name: Upload Store Package
+      - name: Upload Play Store Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: OmniConvert-GooglePlay-Package
           path: |
             *.aab
             *.apk
-            app-release-bundle.aab
+            android.keystore
